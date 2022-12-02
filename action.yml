@@ -128,7 +128,6 @@ runs:
         -pullRequestNumber '${{github.event.number}}' `
         -reviewAppURL '${{env.APP_URL}}' `
         -environmentValues '${{inputs.secondary-app-environment-values}}' `
-        -githubNewBranchPrefix 'tmp-'
       shell: powershell
 
     - name: Installing MYSQL connector
