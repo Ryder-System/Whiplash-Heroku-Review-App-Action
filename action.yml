@@ -123,7 +123,7 @@ runs:
         -herokuPipelineName '${{inputs.secondary-app-pipeline-name}}' `
         -githubAccessToken '${{inputs.github-access-key}}' `
         -githubRepositoryFullName '${{inputs.secondary-app-repository}}' `
-        -githubDefaultBranch '${{inputs.secondary-app-source-branch}}' `
+        -githubFullBranchName '${{inputs.secondary-app-source-branch}}' `
         -reviewAppURL '${{ env.SECONDARY_APP_URL }}' `
         -pullRequestNumber '${{github.event.number}}' `
         -primaryReviewAppURL '${{env.APP_URL}}' `
