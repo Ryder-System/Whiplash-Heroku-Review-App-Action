@@ -124,9 +124,9 @@ runs:
         -githubAccessToken '${{inputs.github-access-key}}' `
         -githubRepositoryFullName '${{inputs.secondary-app-repository}}' `
         -githubFullBranchName '${{inputs.secondary-app-source-branch}}' `
-        -reviewAppURL '${{ env.SECONDARY_APP_URL }}' `
+        -secondaryReviewAppURL '${{ env.SECONDARY_APP_URL }}' `
         -pullRequestNumber '${{github.event.number}}' `
-        -primaryReviewAppURL '${{env.APP_URL}}' `
+        -reviewAppURL '${{env.APP_URL}}' `
         -environmentValues '${{inputs.secondary-app-environment-values}}' `
         -githubNewBranchPrefix 'tmp-'
       shell: powershell
