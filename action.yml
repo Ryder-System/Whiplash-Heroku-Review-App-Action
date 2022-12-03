@@ -126,6 +126,7 @@ runs:
         -githubFullBranchName '${{inputs.secondary-app-source-branch}}' `
         -secondaryReviewAppURL '${{ env.SECONDARY_APP_URL }}' `
         -pullRequestNumber '${{github.event.number}}' `
+        -sourceCodeVersion '${{github.sha}}' `
         -reviewAppURL '${{env.APP_URL}}' `
         -environmentValues '${{inputs.secondary-app-environment-values}}' `
       shell: powershell
