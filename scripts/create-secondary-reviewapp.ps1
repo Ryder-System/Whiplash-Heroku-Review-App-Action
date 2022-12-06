@@ -155,13 +155,13 @@ if(![string]::IsNullOrWhiteSpace($environmentValues)){
     $environmentValuesAsObject = $environmentValues | ConvertFrom-Json
 }
 
-#$environmentValuesAsObject | Add-Member -MemberType NoteProperty -Name 'FRONTEND_URL' -Value $secondaryReviewAppURL  -Force
+$environmentValuesAsObject | Add-Member -MemberType NoteProperty -Name 'FRONTEND_URL' -Value $secondaryReviewAppURL  -Force
 #$environmentValuesAsObject | Add-Member -MemberType NoteProperty -Name 'APP_URL' -Value $reviewAppURL  -Force
 
-$environmentValuesAsObject | Add-Member -MemberType NoteProperty -Name 'API_URL' -Value $secondaryReviewAppURL  -Force
-$environmentValuesAsObject | Add-Member -MemberType NoteProperty -Name 'BACKEND_URL' -Value $secondaryReviewAppURL  -Force
-$environmentValuesAsObject | Add-Member -MemberType NoteProperty -Name 'CORE_URL' -Value $secondaryReviewAppURL  -Force
-$environmentValuesAsObject | Add-Member -MemberType NoteProperty -Name 'WHIPLASH_API_URL' -Value $secondaryReviewAppURL  -Force
+$environmentValuesAsObject | Add-Member -MemberType NoteProperty -Name 'API_URL' -Value $reviewAppURL  -Force
+$environmentValuesAsObject | Add-Member -MemberType NoteProperty -Name 'BACKEND_URL' -Value $reviewAppURL  -Force
+$environmentValuesAsObject | Add-Member -MemberType NoteProperty -Name 'CORE_URL' -Value $reviewAppURL  -Force
+$environmentValuesAsObject | Add-Member -MemberType NoteProperty -Name 'WHIPLASH_API_URL' -Value $reviewAppURL  -Force
     
 Write-Output $environmentValuesAsObject
 
