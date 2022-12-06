@@ -120,14 +120,14 @@ runs:
         ${{ github.action_path }}/scripts/create-secondary-reviewapp.ps1 `
         -workingDirectoryPath '${{github.workspace}}' `
         -herokuApiKey '${{inputs.api-key}}' `
-        -herokuPipelineName '${{inputs.secondary-app-pipeline-name}}' `
         -githubAccessToken '${{inputs.github-access-key}}' `
+        -pullRequestNumber '${{github.event.number}}' `
+        -herokuPipelineName '${{inputs.secondary-app-pipeline-name}}' `
+        -primaryReviewAppURL '${{env.APP_URL}}' `
+        -environmentValues '${{inputs.secondary-app-environment-values}}' `
         -githubRepositoryFullName '${{inputs.secondary-app-repository}}' `
         -githubDefaultBranch '${{inputs.secondary-app-source-branch}}' `
         -reviewAppURL '${{ env.SECONDARY_APP_URL }}' `
-        -pullRequestNumber '${{github.event.number}}' `
-        -primaryReviewAppURL '${{env.APP_URL}}' `
-        -environmentValues '${{inputs.secondary-app-environment-values}}' `
         -githubNewBranchPrefix 'tmp-'
       shell: powershell
 

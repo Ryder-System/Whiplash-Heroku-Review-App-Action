@@ -1,4 +1,4 @@
- param (
+param (
     [Parameter(Mandatory=$true)]
     [string]$workingDirectoryPath,
 
@@ -9,35 +9,64 @@
     [string]$githubAccessToken,
 
     [Parameter(Mandatory=$true)]
-    [string]$githubRepositoryFullName,
-
-    [Parameter(Mandatory=$true)]
-    [string]$githubFullBranchName,
-
-    [Parameter(Mandatory=$true)]
     [string]$pullRequestNumber,
-
-    [Parameter(Mandatory=$true)]
-    [string]$sourceCodeVersion,
 
     [Parameter(Mandatory=$true)]
     [string]$herokuPipelineName,
 
     [Parameter(Mandatory=$true)]
-    [string]$reviewAppURL,
+    [string]$primaryReviewAppURL,
 
     [Parameter(Mandatory=$false)]
     [string]$environmentValues = "",
 
     [Parameter(Mandatory=$true)]
-    [string]$secondaryReviewAppURL
+    [string]$githubRepositoryFullName,
+
+    [Parameter(Mandatory=$true)]
+    [string]$githubDefaultBranch,
+
+    [Parameter(Mandatory=$true)]
+    [string]$reviewAppURL,
+
+    [Parameter(Mandatory=$true)]
+    [string]$githubNewBranchPrefix
 )
 
-Write-Output "====  Beginning - Script of the Primary HEROKU Review APP  ==="
+Write-Output "====  Beginning - Script of the Secondary HEROKU Review APP  ==="
+
 
 # variables
 $herokuApiBaseURL = "https://api.heroku.com"
-$branchName = $githubFullBranchName.Replace("refs/", "").trim()
+# name of the repository with the source code of the secondary app. full name is owner/repo, so we are using the split functionality to get only last part
+$secondarySourceRepositoryName = ("$githubRepositoryFullName".split('/'))[1]
+# name of the branch we will create later.
+$targetBranchName = [string]::Format("{0}{1}", $githubNewBranchPrefix, $pullRequestNumber)
+
+# remove the local copy of the secondary repository if exists
+if((Test-Path -Path $secondarySourceRepositoryName) -eq $true){
+    Remove-Item -Path $secondarySourceRepositoryName -Force -Recurse
+}
+
+# create a new branch for the secondary Review App based on the githubDefaultBranch
+write-output "Creating a new branch based on the branch '$githubDefaultBranch' of the repository $githubRepositoryFullName ..."
+Write-Output "Cloning branch '$githubDefaultBranch'"
+git clone -b $githubDefaultBranch "https://user:$githubAccessToken@github.com/$githubRepositoryFullName.git"
+cd $secondarySourceRepositoryName
+
+Write-Output "Verifying if the branch: '$targetBranchName' already exists in the repository $githubRepositoryFullName "
+if((git ls-remote --heads origin  $targetBranchName)){
+    Write-Output "Branch: '$targetBranchName' found. Removing it ..."
+    git push origin --delete $targetBranchName
+}
+
+Write-Output "Creating branch: '$targetBranchName' ..."
+git checkout -b $targetBranchName -f
+git push origin $targetBranchName
+Write-Output "Branch: '$targetBranchName' Created."
+# set variable sourceVersion to the sha of the las commit to the target branch which is the branch we just created
+$sourceCodeVersion = @(git rev-parse origin $targetBranchName)[0]
+Write-Output "*************************************************"
 
 # heroku request header definition
 $herokuRequestHeader = @{
@@ -46,11 +75,11 @@ $herokuRequestHeader = @{
     "Accept" = "application/vnd.heroku+json;version=3"
 }
 
-# verify if heroku pipeline exists
+# verify if secondary heroku pipeline exists
 $herokuPipelineInstance = $null
 $uri = "$herokuApiBaseURL/pipelines/$herokuPipelineName"
 try{
-    Write-Output "Getting primary HEROKU pipeline details..."
+    Write-Output "Getting secondary HEROKU pipeline details..."
     Write-Output "GET Request URL: $uri"
     $herokuPipelineInstance = Invoke-RestMethod -Method Get -Uri $uri -Headers $herokuRequestHeader -Verbose -Debug
     Write-Output $herokuPipelineInstance
@@ -60,7 +89,7 @@ catch{
     Write-Output $exceptionMessage
     Write-Output $_.ErrorDetails
     if($exceptionMessage -imatch "Not Found"){
-        throw("Primary HEROKU Pipeline Not Found. Please verify that the provided pipeline name is correct.")
+        throw("Secondary HEROKU Pipeline Not Found. Please verify that the provided pipeline name is correct.")
     }
     else{
         throw("Unexpected Error. $exceptionMessage.")
@@ -68,15 +97,17 @@ catch{
 }
 Write-Output "*************************************************"
 
-# verify if exists already a review app related with the pull request
+
+# verify if exists already a review app
+Write-Output "Verify if exists already a review app based on the branch '$targetBranchName' ..."
 $herokuPipelineInstanceID = $herokuPipelineInstance.id
 $uri = "$herokuApiBaseURL/pipelines/$herokuPipelineInstanceID/review-apps"
-Write-Output "Verify if exists already any review app related with the pull request..."
+
 $appReviewList = Invoke-RestMethod -Method Get -Uri $uri -Headers $herokuRequestHeader -Verbose -Debug
 Write-Output "GET Request URL: $uri"
-$reviewAppInstances = $appReviewList.where{$_.pr_number -eq $pullRequestNumber}
+$reviewAppInstances = $appReviewList.where{$_.branch.trim() -eq $targetBranchName}
 if($reviewAppInstances.count -gt 0){
-    Write-Warning "The pipeline: $herokuPipelineName has $($reviewAppInstances.count) Review APP for the pull request: $pullRequestNumber."
+    Write-Warning "The pipeline: $herokuPipelineName has $($reviewAppInstances.count) Review APP based on the branch: $targetBranchName."
     Write-Output "Preparing to remove all of them..."
     foreach($instance in $reviewAppInstances){
         Write-Output "Removing Review App with ID: $($instance.id)..."
@@ -92,6 +123,7 @@ if($reviewAppInstances.count -gt 0){
 else{
     Write-Output "Review APP Not Found."
 }
+
 Write-Output "*************************************************"
 
 # github request header definition
@@ -100,11 +132,11 @@ $githubRequestHeader = @{
     Authorization = "token $githubAccessToken"
 }
 
-# download the source code related with the pull request from github.
-Write-Output "Downloading the source code related with the pull request from github..."
-$uri = "https://api.github.com/repos/$githubRepositoryFullName/tarball/$githubFullBranchName"
+# download the source code of the created branch $targetBranchName.
+Write-Output "Downloading the source code of the branch $targetBranchName from github..."
+$uri = "https://api.github.com/repos/$githubRepositoryFullName/tarball/$targetBranchName"
 Write-Output "GET Request URL: $uri"
-$sourceCodeFileName = $githubRepositoryFullName.Replace('/', '___') + "-pr-$pullRequestNumber.tgz"
+$sourceCodeFileName = $githubRepositoryFullName.Replace('/', '___') + "$targetBranchName.tgz"
 $sourceCodeDownloadPath = "$workingDirectoryPath/$sourceCodeFileName"
 try{
     Invoke-RestMethod -Uri $uri -Headers $githubRequestHeader -Method Get -OutFile $sourceCodeDownloadPath -Verbose -Debug | Out-Null
@@ -148,14 +180,16 @@ Write-Output "*************************************************"
 
 # lets begin creating the review app
 # first lets set up the default values for the environment configuration the review app will use
-# so far only ensure that the UI_URL configuration is present
+# so far only ensure that the BACKEND_URL configuration is present
 Write-Output "Setting up the default environment variable values for the Primary Review App.."
 $environmentValuesAsObject = [PSCustomObject]@{}
 if(![string]::IsNullOrWhiteSpace($environmentValues)){
     $environmentValuesAsObject = $environmentValues | ConvertFrom-Json
 }
-$environmentValuesAsObject | Add-Member -MemberType NoteProperty -Name 'FRONTEND_URL' -Value $secondaryReviewAppURL  -Force
-$environmentValuesAsObject | Add-Member -MemberType NoteProperty -Name 'APP_URL' -Value $reviewAppURL  -Force
+$environmentValuesAsObject | Add-Member -MemberType NoteProperty -Name 'API_URL' -Value $primaryReviewAppURL  -Force
+$environmentValuesAsObject | Add-Member -MemberType NoteProperty -Name 'BACKEND_URL' -Value $primaryReviewAppURL  -Force
+$environmentValuesAsObject | Add-Member -MemberType NoteProperty -Name 'CORE_URL' -Value $primaryReviewAppURL  -Force
+$environmentValuesAsObject | Add-Member -MemberType NoteProperty -Name 'WHIPLASH_API_URL' -Value $primaryReviewAppURL  -Force
 Write-Output $environmentValuesAsObject
 
 Write-Output "*************************************************"
@@ -163,8 +197,7 @@ Write-Output "*************************************************"
 Write-Output "Creating review app..."
 # request body
 $createReviewAppRequestBody = @{
-  branch = $branchName
-  pr_number = [int]::Parse($pullRequestNumber)
+  branch = $targetBranchName
   pipeline = $herokuPipelineInstanceID
   source_blob = @{
     url = $herokuSourceInstance.source_blob.get_url
@@ -234,7 +267,4 @@ if($completedWithError){
 
 Write-Output "*************************************************"
 
-Write-Output "====  END - Script of the Primary Heroku Review APP ==="
-
-
-
+Write-Output "====  END - Script of the Secondary HEROKU Review APP ==="
