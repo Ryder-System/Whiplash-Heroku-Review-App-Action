@@ -23,6 +23,9 @@ if(!(Test-Path -Path $mysqlDriverPath)){
     throw("Invalid MySQL Driver Path. The path '$mysqlDriverPath' is wrong or missing.")
 }
 try{
+    # appending full redirect URI
+    $redirectUri = $redirectUri + "/users/auth/whiplash/callback"
+    
     # load mysql driver
     Add-Type -Path $mysqlDriverPath
 
